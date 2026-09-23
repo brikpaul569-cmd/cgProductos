@@ -40,7 +40,16 @@ User explicitly authorized the migration after being told it is a breaking chang
 - [x] `npm run build` exits 0 with no viewport/compat warnings
 - [x] `npm run dev` serves `/` with HTTP 200 and title `CG Productos`
 - [x] README reflects the actual installed stack
-- [ ] Work-unit commit created on `chore/nextjs-16-upgrade` with commit identity recorded below
+- [x] Work-unit commit created on `chore/nextjs-16-upgrade` with commit identity recorded below
+
+## Work-unit commit
+- **Branch**: `chore/nextjs-16-upgrade` (from `master` @ `f8e929d`)
+- **Commit**: `bb1821e` — `chore(deps): upgrade to Next.js 16.3.6 and React 19.3`
+- **Size**: 9 files changed, 825 insertions(+), 207 deletions(-)
+- **Authored lines (excl. generated `package-lock.json`)**: ~169 — well under the 400-line budget, so no chain strategy required.
+- **Focused test command**: `npm run lint` -> exit 0, 0 problems
+- **Runtime harness**: `npm run dev` -> `GET /` 200 (title `CG Productos`), `GET /test-env` 200, `POST /api/epayco-webhook` bad-signature 403, `GET /api/epayco-webhook` 405
+- **Rollback**: revert `bb1821e` restores Next 15.5.26; no unrelated work on this branch
 
 ## Checklist
 - [x] T1 — Run Next 16 upgrade codemod and inspect diff
