@@ -82,7 +82,7 @@ Complete through T6 verification. Remaining: record the work-unit commit identit
 5. **`eslint-plugin-react-hooks@7` (bundled with `eslint-config-next@16`) surfaced 3 new errors** not present before:
    - `Header.tsx` unused `epayReady` state — the value was discarded via `[, setEpayReady]` and never read anywhere (grep-confirmed). State + effect deleted; real fix, no suppression.
    - `Header.tsx` `Date.now()` purity error — the order id is business logic for the payment flow, not render-time state. Extracted to module-level `createOrderId()`.
-   - `CountrySelector.tsx` `set-state-in-effect` — **suppressed with justification, not fixed.** Reading `localStorage` during render would desync server/client HTML and break Next.js hydration; the mount effect is the correct SSR-safe pattern here. Note: this component is currently dead code (imported nowhere) — surfaced to the user as a separate product decision.
+   - `CountrySelector.tsx` `set-state-in-effect` — **resolved by deleting the file.** It was dead code (imported nowhere; grep confirmed only self-references). Country selection remains fully functional via the two `<select>` elements in `Header.tsx` (lines 143 and 229) that call `setCountry`. The file also duplicated `COUNTRIES` from `cartStore.ts` as its own `COUNTRIES_LIST`, creating a list-drift risk, and its `user-country` localStorage key was written but never read anywhere. Deletion removes the lint error, the suppression, the duplicate list, and the orphaned storage key in one move.
 6. **`@eslint/eslintrc` removed** as a dependency — it only existed to power `FlatCompat`, which is gone.
 
 ## Decision log
@@ -91,9 +91,9 @@ Complete through T6 verification. Remaining: record the work-unit commit identit
 - Scope held: other major bumps (framer-motion 13, lucide-react 1.x, typescript 7, @types/node 26) deliberately left alone — user did not authorize them.
 
 ## Rollback boundary
-`package.json`, `package-lock.json`, `next.config.ts`, `eslint.config.mjs`, `tsconfig.json`, `src/components/ui/Header.tsx`, `src/components/ui/CountrySelector.tsx`, `src/app/layout.tsx`, `README.md`. Reverting the single work-unit commit restores Next 15.5.26; no other feature work exists on this branch.
+`package.json`, `package-lock.json`, `next.config.ts`, `eslint.config.mjs`, `tsconfig.json`, `src/components/ui/Header.tsx`, `src/app/layout.tsx`, `README.md`. Reverting the work-unit commits restores Next 15.5.26; no other feature work exists on this branch.
 
 ## Rationale
 - Pinned `eslint@9` rather than accepting the codemod's `eslint@10` because the peer-dependency evidence is unambiguous and 10 cannot work with the bundled plugin.
-- Chose a justified suppression over a behavioral refactor for `CountrySelector` because the "fix" (moving the read into render) would introduce a hydration bug — trading a lint error for a runtime error is not an upgrade.
-- Rejected deleting `CountrySelector` despite it being dead code: that is a product decision (keep the country modal or not), not a lint fix, and the user has not authorized removing the feature.
+- Chose deletion over a behavioral refactor for `CountrySelector`: moving the `localStorage` read into render would introduce a hydration bug (trading a lint error for a runtime error), while keeping it required a permanent suppression. It was dead code, so deletion was strictly better than either.
+- Deleted `CountrySelector` under the user's delegated decision (`"lo que mejor convenga"`). Pre-deletion verification: zero imports across `src/`, country selection confirmed working via the two `Header.tsx` `<select>` elements, `user-country` localStorage key confirmed write-only, `COUNTRIES_LIST` confirmed a duplicate of `cartStore.COUNTRIES`.
