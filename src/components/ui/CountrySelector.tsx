@@ -23,6 +23,7 @@ export default function CountrySelector() {
     // Comprueba si hay un país guardado en el LocalStorage
     const savedCountry = localStorage.getItem("user-country");
     if (!savedCountry) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- Reading localStorage during render would desync server/client HTML and break Next.js hydration; deferring this one-shot decision to a mount effect is the correct SSR-safe pattern.
       setIsOpen(true);
     }
   }, []); // El array vacío asegura que este efecto se ejecute una sola vez al cargar el componente

@@ -6,6 +6,13 @@ import { useEffect, useState } from "react";
 import CartDropdown from "@/components/ui/CartDropdown";
 import { useCartStore, COUNTRIES } from "@/store/cartStore";
 
+// Checkout order id. Kept outside the component because it is business logic
+// for the payment flow, not render-time state — it must be generated at the
+// moment the user clicks Pay, never during render.
+function createOrderId(): string {
+  return `order_${Date.now()}`;
+}
+
 export default function Header() {
   const itemsCount = useCartStore((s) => s.getItemCount());
   const country = useCartStore((s) => s.country);
@@ -15,12 +22,7 @@ export default function Header() {
   const total = getTotal();
 
   const [alertMsg, setAlertMsg] = useState<string | null>(null);
-  const [, setEpayReady] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-
-  useEffect(() => {
-    setEpayReady(typeof window.ePayco !== "undefined");
-  }, []);
 
   useEffect(() => {
     if (alertMsg) {
@@ -48,7 +50,7 @@ export default function Header() {
       const checkoutData = {
         name: "Compra CG Productos",
         description: `Compra de ${itemsCount} tarro(s)`,
-        invoice: `order_${Date.now()}`,
+        invoice: createOrderId(),
         currency: curr,
         amount: amount,
         tax_base: "0",

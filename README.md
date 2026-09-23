@@ -11,7 +11,8 @@ Proyecto **CG Productos**, una tienda minimalista con carrito de compras y sopor
 
 ## 🚀 Tecnologías utilizadas
 
-- ⚡ [Next.js 15](https://nextjs.org/) – Framework React para el frontend
+- ⚡ [Next.js 16](https://nextjs.org/) – Framework React para el frontend
+- ⚛️ [React 19](https://react.dev/) – Biblioteca de UI
 - 🎨 [Tailwind CSS](https://tailwindcss.com/) – Estilos rápidos y responsivos
 - 🛠️ [TypeScript](https://www.typescriptlang.org/) – Tipado estático para mayor seguridad
 - 🛒 [Shadcn/UI](https://ui.shadcn.com/) – Componentes de interfaz reutilizables
