@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import CartDropdown from "@/components/ui/CartDropdown";
 import { useCartStore, COUNTRIES } from "@/store/cartStore";
@@ -14,6 +15,7 @@ function createOrderId(): string {
 }
 
 export default function Header() {
+  const router = useRouter();
   const items = useCartStore((s) => s.items);
   const itemsCount = useCartStore((s) => s.getItemCount());
   const country = useCartStore((s) => s.country);
@@ -45,6 +47,12 @@ export default function Header() {
     }
 
     setIsPaying(true);
+
+    // Tracks whether the checkout modal took over. Once it opens, the button
+    // must stay disabled for the whole modal lifetime: a re-enabled button
+    // allows a second click that would create a duplicate session and charge
+    // the customer twice.
+    let handedOffToCheckout = false;
 
     try {
       // Only product ids and quantities go to the server. It resolves prices
@@ -79,7 +87,47 @@ export default function Header() {
       });
 
       handler.setHooks({
+        // Smart Checkout reports the transaction outcome here. The redirect to
+        // /gracias may or may not carry the same values depending on the
+        // session, so we forward what the hook gave us as query params. These
+        // are browser-side values and are only used to render the message.
+        onResponse: (response: unknown) => {
+          const params = new URLSearchParams();
+
+          // The hook is typed as unknown, so narrow before reading. Anything
+          // that is not an object simply yields no values, and the page falls
+          // back to its "could not confirm" message.
+          const data =
+            response && typeof response === "object"
+              ? (response as Record<string, unknown>)
+              : {};
+
+          const pick = (...keys: string[]) => {
+            for (const key of keys) {
+              const value = data[key];
+              if (typeof value === "string" && value.trim() !== "") {
+                return value.trim();
+              }
+              if (typeof value === "number") return String(value);
+            }
+            return null;
+          };
+
+          const ref = pick("ref_payco", "refPayco", "reference", "x_ref_payco");
+          const status = pick("status", "state", "x_response");
+          const amount = pick("amount", "x_amount", "value");
+          const currency = pick("currency", "currency_code", "x_currency_code");
+
+          if (ref) params.set("ref_payco", ref);
+          if (status) params.set("x_response", status);
+          if (amount) params.set("amount", amount);
+          if (currency) params.set("currency_code", currency);
+
+          const query = params.toString();
+          router.push(query ? `/gracias?${query}` : "/gracias");
+        },
         onErrors: () => {
+          setIsPaying(false);
           setAlertMsg("ePayco reportó un error en el pago.");
         },
         onClosed: () => {
@@ -88,10 +136,15 @@ export default function Header() {
       });
 
       handler.open();
+      handedOffToCheckout = true;
     } catch {
       setAlertMsg("No se pudo conectar con el servicio de pagos.");
     } finally {
-      setIsPaying(false);
+      // Only re-enable when we never reached the modal. The modal's own
+      // onClosed/onErrors hooks release the button from there.
+      if (!handedOffToCheckout) {
+        setIsPaying(false);
+      }
     }
   };
 
@@ -184,7 +237,7 @@ export default function Header() {
                 disabled={isPaying}
                 className="bg-green-600 hover:bg-green-700 text-white px-3 md:px-4 py-1 md:py-2 rounded-md text-sm md:text-sm font-medium transition-all duration-300 transform hover:scale-105 shadow-sm hover:shadow-md disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:scale-100"
               >
-                {isPaying ? "Abriendo..." : "Pagar"}
+                {isPaying ? "Abriendo checkout..." : "Comprar ahora"}
               </button>
             </div>
           </div>
@@ -270,7 +323,7 @@ export default function Header() {
                   disabled={isPaying}
                   className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-all disabled:opacity-60 disabled:cursor-not-allowed"
                 >
-                  {isPaying ? "Abriendo..." : "Pagar"}
+                  {isPaying ? "Abriendo checkout..." : "Comprar ahora"}
                 </button>
               </div>
             </div>

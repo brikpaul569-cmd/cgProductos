@@ -100,18 +100,36 @@ export async function POST(request) {
       return new Response("Firma no válida", { status: 403 });
     }
 
-    // A partir de acá la transacción viene firmada por ePayco.
-    console.log("🔔 Transacción verificada:", {
-      ref: x_ref_payco,
-      estado: x_response,
-      monto: x_amount,
-      moneda: x_currency_code,
-    });
+    // A partir de acá la transacción viene firmada por ePayco. Esta es la
+    // única señal del lado del servidor que confirma un cobro: la redirección
+    // del cliente no es confiable.
+    const ACEPTADOS = new Set(["aceptada", "aprobada", "approved"]);
+    const RECHAZADOS = ["rechaz", "declin", "fallid", "cancel", "error"];
+    const estado = (x_response ?? "").toLowerCase().trim();
 
-    if (x_response === "Aceptada") {
-      console.log("💰 Pago aprobado:", x_amount, x_currency_code);
+    if (ACEPTADOS.has(estado)) {
+      console.log("💰 PAGO APROBADO", {
+        ref: x_ref_payco,
+        transaccion: xTransactionId,
+        monto: x_amount,
+        moneda: x_currency_code,
+      });
+    } else if (RECHAZADOS.some((m) => estado.includes(m))) {
+      console.log("⚠️ PAGO RECHAZADO", {
+        ref: x_ref_payco,
+        transaccion: xTransactionId,
+        estado: x_response,
+        monto: x_amount,
+        moneda: x_currency_code,
+      });
     } else {
-      console.log("⚠️ Pago no aprobado:", x_response, "-", x_ref_payco);
+      console.log("⏳ PAGO PENDIENTE", {
+        ref: x_ref_payco,
+        transaccion: xTransactionId,
+        estado: x_response,
+        monto: x_amount,
+        moneda: x_currency_code,
+      });
     }
 
     return new Response("OK", { status: 200 });

@@ -1,5 +1,17 @@
 // Helpers to read the transaction fields ePayco appends to the
 // response/confirmation redirects.
+//
+// IMPORTANT TRUST BOUNDARY
+// -----------------------
+// These values arrive in the URL, so they are controlled by whoever typed the
+// URL. They are trustworthy enough to render an informational message and
+// nothing more. A customer can hand-edit `?x_response=Aceptada` and make this
+// page claim a payment that never happened.
+//
+// The only server-side signal that a charge actually settled is the ePayco
+// webhook. Until that is persisted, this page must never state a payment was
+// confirmed as fact. Every message here is written to be honest about what is
+// actually known.
 
 export type EpaycoSearchParams = Record<
   string,
@@ -26,19 +38,50 @@ export function readPaymentSummary(
   params: EpaycoSearchParams
 ): PaymentSummary {
   return {
-    ref: first(params.x_ref_payco ?? params.RefPayco ?? params.ref),
-    transactionId: first(params.x_transaction_id ?? params.TransactionID),
-    status: first(params.x_response ?? params.status),
-    amount: first(params.x_amount ?? params.Amount),
-    currency: first(params.x_currency_code ?? params.Currency),
-    date: first(params.x_acceptance_date ?? params.x_response_date),
+    // Smart Checkout (v2) and the classic API disagree on field names, so both
+    // are read. Unknown values resolve to null rather than to a guess.
+    ref: first(
+      params.ref_payco ??
+        params.x_ref_payco ??
+        params.RefPayco ??
+        params.ref
+    ),
+    transactionId: first(
+      params.transaction_id ??
+        params.x_transaction_id ??
+        params.TransactionID
+    ),
+    status: first(
+      params.x_response ??
+        params.status ??
+        params.state ??
+        params.estado
+    ),
+    amount: first(params.amount ?? params.x_amount ?? params.Amount),
+    currency: first(
+      params.currency_code ?? params.x_currency_code ?? params.Currency
+    ),
+    date: first(params.date ?? params.x_acceptance_date ?? params.x_response_date),
   };
 }
 
 // ePayco reports "Aceptada" for a settled payment. Everything else
 // (Pendiente, Rechazada, ...) must not be presented as a confirmed purchase.
 export function isPaymentAccepted(summary: PaymentSummary): boolean {
-  return summary.status?.toLowerCase() === "aceptada";
+  const status = summary.status?.toLowerCase().trim();
+  return status === "aceptada" || status === "aprobada" || status === "approved";
+}
+
+export function isPaymentRejected(summary: PaymentSummary): boolean {
+  const status = summary.status?.toLowerCase().trim() ?? "";
+  return (
+    status.includes("rechaz") ||
+    status.includes("rechazada") ||
+    status.includes("declin") ||
+    status.includes("fallid") ||
+    status.includes("error") ||
+    status.includes("cancel")
+  );
 }
 
 export function formatAmount(
