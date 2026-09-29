@@ -1,6 +1,7 @@
 "use client";
 
 import { useCartStore } from "@/store/cartStore";
+import { RESPONSE_URL, CONFIRMATION_URL } from "@/lib/site";
 
 export default function Checkout() {
   const itemsCount = useCartStore((s) => s.getItemCount());
@@ -13,7 +14,12 @@ export default function Checkout() {
       return;
     }
 
-    const { amount, currency } = total;
+      const { amount, currency } = total;
+
+      // One order id for the whole payment: invoice and external must match
+      // or the order cannot be traced back to the transaction.
+      const orderReference = `order_${Date.now()}`;
+
 
     if (typeof window.ePayco !== "undefined") {
       const handler = window.ePayco.checkout.configure({
@@ -24,16 +30,16 @@ export default function Checkout() {
       const paymentData = {
         name: "Compra CG Productos",
         description: `Compra de ${itemsCount} tarro(s)`,
-        invoice: `order_${Date.now()}`,
+        invoice: orderReference,
         currency: currency,
         amount: amount,
         country: country,
         tax_base: "0",
         tax: "0",
         method: "POST" as const, // ✅ ahora correcto para TS
-        response: "https://tusitio.com/response",
-        confirmation: "https://tusitio.com/confirmation",
-        external: `order_${Date.now()}`,
+        response: RESPONSE_URL,
+        confirmation: CONFIRMATION_URL,
+        external: orderReference,
       };
 
       handler.open(paymentData);
