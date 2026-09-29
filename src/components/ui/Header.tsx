@@ -5,8 +5,6 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import CartDropdown from "@/components/ui/CartDropdown";
 import { useCartStore, COUNTRIES } from "@/store/cartStore";
-import { RESPONSE_URL, CONFIRMATION_URL } from "@/lib/site";
-import { toEpaycoCountry } from "@/lib/epayco";
 
 // Checkout order id. Kept outside the component because it is business logic
 // for the payment flow, not render-time state — it must be generated at the
@@ -16,6 +14,7 @@ function createOrderId(): string {
 }
 
 export default function Header() {
+  const items = useCartStore((s) => s.items);
   const itemsCount = useCartStore((s) => s.getItemCount());
   const country = useCartStore((s) => s.country);
   const setCountry = useCartStore((s) => s.setCountry);
@@ -25,6 +24,7 @@ export default function Header() {
 
   const [alertMsg, setAlertMsg] = useState<string | null>(null);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isPaying, setIsPaying] = useState(false);
 
   useEffect(() => {
     if (alertMsg) {
@@ -33,55 +33,66 @@ export default function Header() {
     }
   }, [alertMsg]);
 
-  const handlePay = () => {
+  const handlePay = async () => {
     if (itemsCount === 0) {
       setAlertMsg("Tu carrito está vacío.");
       return;
     }
 
-    const { amount, currency: curr } = total;
-
-    const publicKey = process.env.NEXT_PUBLIC_EPAYCO_PUBLIC_KEY;
-    if (!publicKey) {
-      setAlertMsg(
-        "Falta configurar NEXT_PUBLIC_EPAYCO_PUBLIC_KEY en el entorno."
-      );
+    if (typeof window.ePayco === "undefined") {
+      setAlertMsg("No se pudo cargar el checkout de ePayco. Recargá la página.");
       return;
     }
 
-    const orderReference = createOrderId();
+    setIsPaying(true);
 
-    if (typeof window.ePayco !== "undefined") {
-      // configure() only accepts key and test. Everything else belongs to
-      // the payment data handed to open().
-      const handler = window.ePayco.checkout.configure({
-        key: publicKey,
-        test: process.env.NEXT_PUBLIC_EPAYCO_TEST === "true",
+    try {
+      // Only product ids and quantities go to the server. It resolves prices
+      // and returns a sessionId, so the amount charged cannot be tampered
+      // with from the browser.
+      const res = await fetch("/api/epayco/create-session", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          items: items.map((item) => ({ id: item.id, qty: item.qty })),
+          currency: total.currency,
+          country,
+          orderReference: createOrderId(),
+        }),
       });
 
-      const checkoutData = {
-        name: "Compra CG Productos",
-        description: `Compra de ${itemsCount} tarro(s)`,
-        invoice: orderReference,
-        currency: curr,
-        amount: amount,
-        tax_base: "0",
-        tax: "0",
-        country: toEpaycoCountry(country),
-        lang: "es",
-        response: RESPONSE_URL,
-        confirmation: CONFIRMATION_URL,
-        external: orderReference,
-        method: "POST" as const,
+      const data = (await res.json()) as {
+        sessionId?: string;
+        test?: boolean;
+        error?: string;
       };
 
-      handler.open(checkoutData);
-      return;
-    }
+      if (!res.ok || !data.sessionId) {
+        setAlertMsg(data.error ?? "No se pudo iniciar el pago.");
+        return;
+      }
 
-    setAlertMsg(
-      `Redirigiendo a ePayco (mock)\nPaís: ${country}\nMonto: ${amount} ${curr}`
-    );
+      const handler = window.ePayco.checkout.configure({
+        sessionId: data.sessionId,
+        type: "onpage",
+        test: data.test ?? true,
+      });
+
+      handler.setHooks({
+        onErrors: () => {
+          setAlertMsg("ePayco reportó un error en el pago.");
+        },
+        onClosed: () => {
+          setIsPaying(false);
+        },
+      });
+
+      handler.open();
+    } catch {
+      setAlertMsg("No se pudo conectar con el servicio de pagos.");
+    } finally {
+      setIsPaying(false);
+    }
   };
 
   const toggleMenu = () => {
@@ -170,9 +181,10 @@ export default function Header() {
               </span>
               <button
                 onClick={handlePay}
-                className="bg-green-600 hover:bg-green-700 text-white px-3 md:px-4 py-1 md:py-2 rounded-md text-sm md:text-sm font-medium transition-all duration-300 transform hover:scale-105 shadow-sm hover:shadow-md"
+                disabled={isPaying}
+                className="bg-green-600 hover:bg-green-700 text-white px-3 md:px-4 py-1 md:py-2 rounded-md text-sm md:text-sm font-medium transition-all duration-300 transform hover:scale-105 shadow-sm hover:shadow-md disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:scale-100"
               >
-                Pagar
+                {isPaying ? "Abriendo..." : "Pagar"}
               </button>
             </div>
           </div>
@@ -255,9 +267,10 @@ export default function Header() {
                 </span>
                 <button
                   onClick={handlePay}
-                  className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-all"
+                  disabled={isPaying}
+                  className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-all disabled:opacity-60 disabled:cursor-not-allowed"
                 >
-                  Pagar
+                  {isPaying ? "Abriendo..." : "Pagar"}
                 </button>
               </div>
             </div>

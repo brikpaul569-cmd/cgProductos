@@ -4,6 +4,7 @@
 import { useState } from "react";
 import { Plus } from "lucide-react";
 import { useCartStore } from "@/store/cartStore";
+import { PRODUCTS } from "@/lib/catalog";
 
 // Importaciones de tus componentes de contenido
 import Cases from "@/components/ui/Cases";
@@ -13,48 +14,7 @@ export default function HomePage() {
   const addItem = useCartStore((s) => s.addItem);
   const [toast, setToast] = useState<string | null>(null);
 
-  const products = [
-    {
-      id: "p1",
-      name: "Detox Manzana",
-      priceUSD: 46,
-      priceCOP: 95000,
-      image: "/images/manzana.png",
-      weight: "400 G",
-      description:
-        "Refresca, depura y revitaliza tu cuerpo, esta bebida combina el sabor dulce y suave de la manzana con ingredientes naturales que ayudan a eliminar las toxinas de manera natural, mejorar la digestión y desinflamar el organismo. Perfecto para acompañar tus rutinas saludables, sin azúcares añadidos ni conservantes.",
-    },
-    {
-      id: "p2",
-      name: "Colágeno Hidrolizado Vainilla",
-      priceUSD: 46,
-      priceCOP: 95000,
-      image: "/images/vainilla.png",
-      weight: "400 G",
-      description:
-        "Disfruta de una experiencia deliciosa mientras nutres tu piel, cabello, uñas y articulaciones. Su fórmula de fácil absorción está diseñada para que tu cuerpo obtenga todos los beneficios del colágeno de forma rápida y eficaz.",
-    },
-    {
-      id: "p3",
-      name: "Colágeno Hidrolizado Café",
-      priceUSD: 46,
-      priceCOP: 95000,
-      image: "/images/cafe.png",
-      weight: "400 G",
-      description:
-        "Disfruta lo mejor del café con todos los beneficios del colágeno hidrolizado en una mezcla única que nutre tu cuerpo mientras activa tu día. Ideal para quienes aman el café y cuidan su piel, articulaciones, cabello y bienestar desde adentro.",
-    },
-    {
-      id: "p4",
-      name: "Colágeno Hidrolizado Fresa",
-      priceUSD: 46,
-      priceCOP: 95000,
-      image: "/images/fresa.png",
-      weight: "400 G",
-      description:
-        "Revitaliza tu cuerpo con el delicioso sabor de la fresa. Este colágeno hidrolizado apoya la salud de tú piel, cabello y articulaciones, ofreciendo una opción refrescante y nutritiva para tu rutina de bienestar.",
-    },
-  ];
+  const products = PRODUCTS;
 
   function handleAdd(p: (typeof products)[number]) {
     addItem({ id: p.id, name: p.name, priceUSD: p.priceUSD, priceCOP: p.priceCOP, image: p.image });

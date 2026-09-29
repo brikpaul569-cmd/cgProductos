@@ -53,7 +53,7 @@ export default function RootLayout({
         </main>
         {/* Script de ePayco */}
         <Script
-          src="https://checkout.epayco.co/checkout.js"
+          src="https://checkout.epayco.co/checkout-v2.js"
           strategy="afterInteractive"
         />
       </body>
