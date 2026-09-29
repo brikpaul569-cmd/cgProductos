@@ -1,32 +1,117 @@
 import crypto from "crypto";
 
+/**
+ * Webhook de confirmación de ePayco.
+ *
+ * ePayco envía la transacción como parámetros de query en la URL de un POST
+ * (x_ref_payco, x_transaction_id, x_amount, x_currency_code, x_signature, ...),
+ * no como form-data.
+ *
+ * La firma es un hash SHA-256 simple (NO es HMAC) construido con las
+ * credenciales del comercio publicadas en el panel de ePayco
+ * (P_CUST_ID_CLIENTE y P_KEY), no con las llaves de API.
+ */
+function buildLocalSignature(data, pCustIdCliente, pKey) {
+  return crypto
+    .createHash("sha256")
+    .update(
+      [
+        pCustIdCliente,
+        pKey,
+        data.x_ref_payco,
+        data.x_transaction_id,
+        data.x_amount,
+        data.x_currency_code,
+      ].join("^")
+    )
+    .digest("hex");
+}
+
+/**
+ * ePayco entrega los datos como query params. Algunos entornos antiguos
+ * envían form-urlencoded, así que se leen ambos y se combinan.
+ */
+async function readTransactionPayload(request) {
+  const payload = {};
+
+  for (const [key, value] of new URL(request.url).searchParams) {
+    payload[key] = value;
+  }
+
+  const contentType = request.headers.get("content-type") ?? "";
+  if (contentType.includes("application/x-www-form-urlencoded")) {
+    try {
+      const form = await request.formData();
+      for (const [key, value] of form.entries()) {
+        if (payload[key] === undefined) {
+          payload[key] = String(value);
+        }
+      }
+    } catch {
+      // Sin body legible: los query params ya recolectados bastan.
+    }
+  }
+
+  return payload;
+}
+
+function isEqualSignature(received, computed) {
+  if (typeof received !== "string" || received.length !== computed.length) {
+    return false;
+  }
+  return crypto.timingSafeEqual(
+    Buffer.from(received, "utf8"),
+    Buffer.from(computed, "utf8")
+  );
+}
+
 export async function POST(request) {
+  const pCustIdCliente = process.env.EPAYCO_P_CUST_ID_CLIENTE;
+  const pKey = process.env.EPAYCO_P_KEY;
+
+  if (!pCustIdCliente || !pKey) {
+    console.error(
+      "❌ Faltan EPAYCO_P_CUST_ID_CLIENTE o EPAYCO_P_KEY en el servidor."
+    );
+    return new Response("Configuración de webhook incompleta", {
+      status: 500,
+    });
+  }
+
   try {
-    const form = await request.formData();
-    const data = Object.fromEntries(form.entries());
+    const data = await readTransactionPayload(request);
+    const {
+      x_ref_payco,
+      x_transaction_id: xTransactionId,
+      x_response,
+      x_amount,
+      x_currency_code,
+    } = data;
 
-    console.log("🔔 Webhook recibido:", data);
+    if (!x_ref_payco || !xTransactionId) {
+      console.warn("⚠️ Webhook sin x_ref_payco o x_transaction_id, se ignora.");
+      return new Response("Payload incompleto", { status: 400 });
+    }
 
-    const apiKey = process.env.EPAYCO_API_KEY;
-    const privateKey = process.env.EPAYCO_PRIVATE_KEY;
+    const firmaLocal = buildLocalSignature(data, pCustIdCliente, pKey);
 
-    // Generar firma local (usa los campos reales del webhook)
-    const firmaLocal = crypto
-      .createHash("sha256")
-      .update(
-        `${apiKey}^${privateKey}^${data.x_ref_payco}^${data.x_transaction_id}^${data.x_amount}^${data.x_currency_code}`
-      )
-      .digest("hex");
-
-    if (firmaLocal !== data.x_signature) {
-      console.log("⚠️ Firma inválida");
+    if (!isEqualSignature(data.x_signature, firmaLocal)) {
+      console.warn("⚠️ Firma inválida. Referencia:", x_ref_payco);
       return new Response("Firma no válida", { status: 403 });
     }
 
-    if (data.x_response === "Aceptada") {
-      console.log("💰 Pago aprobado:", data.x_amount);
+    // A partir de acá la transacción viene firmada por ePayco.
+    console.log("🔔 Transacción verificada:", {
+      ref: x_ref_payco,
+      estado: x_response,
+      monto: x_amount,
+      moneda: x_currency_code,
+    });
+
+    if (x_response === "Aceptada") {
+      console.log("💰 Pago aprobado:", x_amount, x_currency_code);
     } else {
-      console.log("⚠️ Pago no aprobado:", data.x_response);
+      console.log("⚠️ Pago no aprobado:", x_response, "-", x_ref_payco);
     }
 
     return new Response("OK", { status: 200 });
