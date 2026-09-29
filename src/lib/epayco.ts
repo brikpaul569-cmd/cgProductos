@@ -50,3 +50,19 @@ export function formatAmount(
   if (!Number.isFinite(value)) return amount;
   return `${value.toLocaleString("es-CO")} ${currency ?? ""}`.trim();
 }
+
+// ePayco expects the ISO 3166-1 alpha-2 code, but the cart store keeps the
+// display name because that is what the country selector renders.
+const COUNTRY_CODES: Record<string, string> = {
+  "United States": "us",
+  "Panamá": "pa",
+  "Costa Rica": "cr",
+  "El Salvador": "sv",
+  "Guatemala": "gt",
+  "República Dominicana": "do",
+  "Colombia": "co",
+};
+
+export function toEpaycoCountry(country: string): string {
+  return COUNTRY_CODES[country] ?? "co";
+}

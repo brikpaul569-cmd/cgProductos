@@ -5,6 +5,8 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import CartDropdown from "@/components/ui/CartDropdown";
 import { useCartStore, COUNTRIES } from "@/store/cartStore";
+import { RESPONSE_URL, CONFIRMATION_URL } from "@/lib/site";
+import { toEpaycoCountry } from "@/lib/epayco";
 
 // Checkout order id. Kept outside the component because it is business logic
 // for the payment flow, not render-time state — it must be generated at the
@@ -39,25 +41,37 @@ export default function Header() {
 
     const { amount, currency: curr } = total;
 
+    const publicKey = process.env.NEXT_PUBLIC_EPAYCO_PUBLIC_KEY;
+    if (!publicKey) {
+      setAlertMsg(
+        "Falta configurar NEXT_PUBLIC_EPAYCO_PUBLIC_KEY en el entorno."
+      );
+      return;
+    }
+
+    const orderReference = createOrderId();
+
     if (typeof window.ePayco !== "undefined") {
+      // configure() only accepts key and test. Everything else belongs to
+      // the payment data handed to open().
       const handler = window.ePayco.checkout.configure({
-        key: process.env.NEXT_PUBLIC_EPAYCO_PUBLIC_KEY ?? "",
+        key: publicKey,
         test: process.env.NEXT_PUBLIC_EPAYCO_TEST === "true",
-        lang: "es",
-        external: "false",
       });
 
       const checkoutData = {
         name: "Compra CG Productos",
         description: `Compra de ${itemsCount} tarro(s)`,
-        invoice: createOrderId(),
+        invoice: orderReference,
         currency: curr,
         amount: amount,
         tax_base: "0",
         tax: "0",
-        country: country,
-        response: `${process.env.NEXT_PUBLIC_URL}/epayco/response`,
-        confirmation: `${process.env.NEXT_PUBLIC_URL}/api/epayco/confirmation`,
+        country: toEpaycoCountry(country),
+        lang: "es",
+        response: RESPONSE_URL,
+        confirmation: CONFIRMATION_URL,
+        external: orderReference,
         method: "POST" as const,
       };
 
