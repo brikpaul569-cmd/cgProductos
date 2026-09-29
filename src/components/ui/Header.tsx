@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import CartDropdown from "@/components/ui/CartDropdown";
 import { useCartStore, COUNTRIES } from "@/store/cartStore";
+import { isSessionId } from "@/lib/epayco";
 
 // Checkout order id. Kept outside the component because it is business logic
 // for the payment flow, not render-time state — it must be generated at the
@@ -118,7 +119,10 @@ export default function Header() {
           const amount = pick("amount", "x_amount", "value");
           const currency = pick("currency", "currency_code", "x_currency_code");
 
-          if (ref) params.set("ref_payco", ref);
+          // The widget often echoes its own session handle where a payment
+          // reference would go. It is internal to ePayco, so it is dropped here
+          // rather than shown to the customer as if it were a receipt number.
+          if (ref && !isSessionId(ref)) params.set("ref_payco", ref);
           if (status) params.set("x_response", status);
           if (amount) params.set("amount", amount);
           if (currency) params.set("currency_code", currency);

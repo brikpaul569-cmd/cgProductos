@@ -48,7 +48,7 @@ export default async function PaymentOutcomePage({ searchParams }: Props) {
             ? "¡Gracias por tu compra!"
             : rejected
               ? "No se completó tu pago"
-              : "No pudimos confirmar tu pago"}
+              : "Estamos procesando tu pago"}
         </h1>
 
         <p className="mb-8 text-lg leading-relaxed text-gray-600">
@@ -56,7 +56,7 @@ export default async function PaymentOutcomePage({ searchParams }: Props) {
             ? "Recibimos la confirmación del pago. Te contactaremos por correo con los detalles y el número de seguimiento."
             : rejected
               ? "No se realizó ningún cargo a tu tarjeta o método de pago. Podés intentar nuevamente eligiendo otra forma de pago."
-              : "Tu pago no pudo ser verificado en este momento. Si ya realizaste el cobro, no te preocupes: conservamos el registro de la transacción y nos pondremos en contacto contigo para confirmarla. Si no completaste el pago, no se realizó ningún cargo."}
+              : "Tu pago está siendo confirmado. Si elegiste pagar en efectivo o por otro medio, seguí las instrucciones que te enviamos al correo. Apenas se acredite te escribimos con el comprobante y los datos del envío."}
         </p>
 
         {summary.ref && (
@@ -94,8 +94,8 @@ export default async function PaymentOutcomePage({ searchParams }: Props) {
 
         {!accepted && (
           <p className="mt-8 text-sm text-gray-400">
-            Ante cualquier duda escribinos y verificamos tu pago con la
-            referencia de la transacción.
+            Ante cualquier duda escribinos citando el código de pago que
+            recibiste por correo.
           </p>
         )}
 
