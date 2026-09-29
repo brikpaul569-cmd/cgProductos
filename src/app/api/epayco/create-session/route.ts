@@ -104,8 +104,11 @@ export async function POST(request: Request) {
         description: `Compra de ${priced.items} producto(s)`,
         currency: priced.currency,
         amount: priced.amount,
-        tax_base: "0",
-        tax: "0",
+        // ePayco expects camelCase for the tax fields and numbers, not
+        // strings. Sending tax_base as "0" is rejected as an invalid field.
+        taxBase: 0,
+        tax: 0,
+        taxIco: 0,
         country: toEpaycoCountry(country).toUpperCase(),
         lang: "ES",
         // Both URLs are defined server-side now: the panel configuration is
@@ -114,7 +117,9 @@ export async function POST(request: Request) {
         response: RESPONSE_URL,
         confirmation: `${SITE_URL}/api/epayco-webhook`,
         invoice: orderReference,
-        extra1: orderReference,
+        // The order reference lives inside the extras object. A top-level
+        // extra1 is not a recognized field.
+        extras: { extra1: orderReference },
       }),
     });
 
