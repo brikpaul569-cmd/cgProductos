@@ -3,6 +3,7 @@ import { Montserrat } from "next/font/google";
 import "./globals.css";
 import Header from "@/components/ui/Header";
 import Script from "next/script";
+import { SITE_URL } from "@/lib/site";
 
 const montserrat = Montserrat({
   subsets: ["latin"],
@@ -10,8 +11,25 @@ const montserrat = Montserrat({
 });
 
 export const metadata: Metadata = {
-  title: "CG Productos",
+  metadataBase: new URL(SITE_URL),
+  title: {
+    default: "CG Productos",
+    template: "%s | CG Productos",
+  },
   description: "Tienda minimalista con carrito de compras",
+  openGraph: {
+    type: "website",
+    locale: "es_CO",
+    url: SITE_URL,
+    siteName: "CG Productos",
+  },
+  twitter: {
+    card: "summary_large_image",
+  },
+  robots: {
+    index: true,
+    follow: true,
+  },
 };
 
 export const viewport: Viewport = {
